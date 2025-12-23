@@ -4,23 +4,18 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# ------------------------------
-# إعداد ملف الكوكيز من متغير البيئة
-# ------------------------------
 
 COOKIES_ENV_VAR = "YTDLP_COOKIES"
 COOKIES_PATH = None
 
 cookies_text = os.getenv(COOKIES_ENV_VAR)
 if cookies_text:
-    # مجلد مؤقت قابل للكتابة (يدعم Vercel و Render)
     tmp_dir = os.getenv("TMPDIR", "/tmp")
     COOKIES_PATH = os.path.join(tmp_dir, "cookies.txt")
     try:
         with open(COOKIES_PATH, "w", encoding="utf-8") as f:
             f.write(cookies_text)
     except OSError:
-        # في حال فشل الكتابة (نادرًا)، نكمل بدون كوكيز
         COOKIES_PATH = None
 
 
@@ -44,9 +39,9 @@ def video_info():
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
+        "format": "best",
     }
 
-    # لو الكوكيز متوفرة نضيفها للخيارات
     if COOKIES_PATH:
         ydl_opts["cookiefile"] = COOKIES_PATH
 
@@ -56,22 +51,40 @@ def video_info():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    formats = []
+    video_formats = []
+    audio_formats = []
+
     for f in info.get("formats", []):
-        formats.append({
+        format_data = {
             "format_id": f.get("format_id"),
             "ext": f.get("ext"),
             "vcodec": f.get("vcodec"),
             "acodec": f.get("acodec"),
             "resolution": f.get("resolution") or (
                 f"{f.get('width')}x{f.get('height')}"
-                if f.get("width") and f.get("height") else None
+                if f.get("width") and f.get("height") else "unknown"
             ),
             "fps": f.get("fps"),
             "filesize": f.get("filesize"),
             "tbr": f.get("tbr"),
             "url": f.get("url"),
-        })
+            "note": f.get("format_note")
+        }
+
+        if not format_data["url"]:
+            continue
+
+        vcodec = f.get("vcodec", "none")
+        acodec = f.get("acodec", "none")
+
+        if vcodec == "none" and acodec != "none":
+            audio_formats.append(format_data)
+        
+        elif vcodec != "none":
+            video_formats.append(format_data)
+
+    video_formats.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
+    audio_formats.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
 
     return jsonify({
         "id": info.get("id"),
@@ -81,5 +94,7 @@ def video_info():
         "webpage_url": info.get("webpage_url"),
         "uploader": info.get("uploader"),
         "channel": info.get("channel"),
-        "formats": formats,
+
+        "video_formats": video_formats,
+        "audio_formats": audio_formats,
     })
