@@ -1,8 +1,19 @@
-# api/index.py
+import os
 from flask import Flask, request, jsonify
 import yt_dlp
 
 app = Flask(__name__)
+
+
+COOKIES_ENV_VAR = "YTDLP_COOKIES"
+COOKIES_PATH = None
+
+cookies_text = os.getenv(COOKIES_ENV_VAR)
+if cookies_text:
+    COOKIES_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
+    with open(COOKIES_PATH, "w", encoding="utf-8") as f:
+        f.write(cookies_text)
+
 
 @app.get("/")
 def root():
@@ -10,8 +21,10 @@ def root():
         "name": "Darkman yt-dlp API",
         "author": "darkman",
         "contact": "t.me/darkman_bin",
-        "status": "ok"
+        "status": "ok",
+        "cookies_loaded": bool(COOKIES_PATH),
     })
+
 
 @app.get("/info")
 def video_info():
@@ -23,6 +36,9 @@ def video_info():
         "quiet": True,
         "skip_download": True,
     }
+
+    if COOKIES_PATH:
+        ydl_opts["cookiefile"] = COOKIES_PATH
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -37,7 +53,10 @@ def video_info():
             "ext": f.get("ext"),
             "vcodec": f.get("vcodec"),
             "acodec": f.get("acodec"),
-            "resolution": f.get("resolution") or f"{f.get('width')}x{f.get('height')}" if f.get("width") and f.get("height") else None,
+            "resolution": f.get("resolution") or (
+                f"{f.get('width')}x{f.get('height')}"
+                if f.get("width") and f.get("height") else None
+            ),
             "fps": f.get("fps"),
             "filesize": f.get("filesize"),
             "tbr": f.get("tbr"),
