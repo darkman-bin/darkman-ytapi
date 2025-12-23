@@ -28,9 +28,10 @@ vercel.json       - إعدادات نشر المشروع على Vercel
 الرد:
 ```
 {
-  "name": "Darkman yt-dlp API",
   "author": "darkman",
   "contact": "t.me/darkman_bin",
+  "cookies_loaded": true,
+  "name": "Darkman yt-dlp API",
   "status": "ok"
 }
 ```
