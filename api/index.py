@@ -4,7 +4,6 @@ import yt_dlp
 
 app = Flask(__name__)
 
-
 COOKIES_ENV_VAR = "YTDLP_COOKIES"
 COOKIES_PATH = None
 
@@ -18,17 +17,12 @@ if cookies_text:
     except OSError:
         COOKIES_PATH = None
 
-
 @app.get("/")
 def root():
     return jsonify({
-        "name": "Darkman yt-dlp API",
-        "author": "darkman",
-        "contact": "t.me/darkman_bin",
         "status": "ok",
         "cookies_loaded": bool(COOKIES_PATH),
     })
-
 
 @app.get("/info")
 def video_info():
@@ -39,7 +33,8 @@ def video_info():
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
-        "format": "best",
+        "no_warnings": True,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     }
 
     if COOKIES_PATH:
@@ -55,46 +50,36 @@ def video_info():
     audio_formats = []
 
     for f in info.get("formats", []):
+        if not f.get("url"):
+            continue
+
         format_data = {
             "format_id": f.get("format_id"),
             "ext": f.get("ext"),
+            "resolution": f.get("resolution") or "unknown",
+            "filesize": f.get("filesize"),
+            "url": f.get("url"),
+            "note": f.get("format_note"),
             "vcodec": f.get("vcodec"),
             "acodec": f.get("acodec"),
-            "resolution": f.get("resolution") or (
-                f"{f.get('width')}x{f.get('height')}"
-                if f.get("width") and f.get("height") else "unknown"
-            ),
-            "fps": f.get("fps"),
-            "filesize": f.get("filesize"),
-            "tbr": f.get("tbr"),
-            "url": f.get("url"),
-            "note": f.get("format_note")
         }
-
-        if not format_data["url"]:
-            continue
 
         vcodec = f.get("vcodec", "none")
         acodec = f.get("acodec", "none")
 
         if vcodec == "none" and acodec != "none":
             audio_formats.append(format_data)
-        
         elif vcodec != "none":
             video_formats.append(format_data)
 
-    video_formats.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
-    audio_formats.sort(key=lambda x: x.get('tbr') or 0, reverse=True)
+    video_formats.reverse()
+    audio_formats.reverse()
 
     return jsonify({
         "id": info.get("id"),
         "title": info.get("title"),
         "thumbnail": info.get("thumbnail"),
         "duration": info.get("duration"),
-        "webpage_url": info.get("webpage_url"),
-        "uploader": info.get("uploader"),
-        "channel": info.get("channel"),
-
         "video_formats": video_formats,
         "audio_formats": audio_formats,
     })
