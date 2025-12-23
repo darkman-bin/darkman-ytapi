@@ -4,15 +4,24 @@ import yt_dlp
 
 app = Flask(__name__)
 
+# ------------------------------
+# إعداد ملف الكوكيز من متغير البيئة
+# ------------------------------
 
 COOKIES_ENV_VAR = "YTDLP_COOKIES"
 COOKIES_PATH = None
 
 cookies_text = os.getenv(COOKIES_ENV_VAR)
 if cookies_text:
-    COOKIES_PATH = os.path.join(os.path.dirname(__file__), "cookies.txt")
-    with open(COOKIES_PATH, "w", encoding="utf-8") as f:
-        f.write(cookies_text)
+    # مجلد مؤقت قابل للكتابة (يدعم Vercel و Render)
+    tmp_dir = os.getenv("TMPDIR", "/tmp")
+    COOKIES_PATH = os.path.join(tmp_dir, "cookies.txt")
+    try:
+        with open(COOKIES_PATH, "w", encoding="utf-8") as f:
+            f.write(cookies_text)
+    except OSError:
+        # في حال فشل الكتابة (نادرًا)، نكمل بدون كوكيز
+        COOKIES_PATH = None
 
 
 @app.get("/")
@@ -37,6 +46,7 @@ def video_info():
         "skip_download": True,
     }
 
+    # لو الكوكيز متوفرة نضيفها للخيارات
     if COOKIES_PATH:
         ydl_opts["cookiefile"] = COOKIES_PATH
 
